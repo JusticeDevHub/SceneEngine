@@ -2,6 +2,7 @@
   "name": "@web-dev-library/scene-engine",
   "version": "0.1.2",
   "exports": "./mod.ts",
+  "license": "MIT",
   "imports": {
     "three": "npm:three@^0.182.0"
   },

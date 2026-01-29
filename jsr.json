@@ -1,6 +1,0 @@
-{
-  "name": "@web-dev-library/scene-engine",
-  "version": "0.1.2",
-  "exports": "./mod.ts",
-  "license": "MIT"
-}

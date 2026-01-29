@@ -196,7 +196,7 @@ export class GameObject {
   }
 
   // ===== Lifecycle (State changes) =====
-  get enabled() {
+  get enabled(): boolean {
     return this._enabled;
   }
 
@@ -212,7 +212,7 @@ export class GameObject {
     return this;
   }
 
-  get isDestroyed() {
+  get isDestroyed(): boolean {
     return this._isDestroyed;
   }
 
