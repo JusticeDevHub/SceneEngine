@@ -12,7 +12,7 @@
  */
 
 export { CanvasEngine } from "./src/engine.ts";
-export { GameObject } from "./src/game_object.ts";
+export { GameObject } from "./src/gameObject.ts";
 export type {
   GameObjectType,
   UpdateData,

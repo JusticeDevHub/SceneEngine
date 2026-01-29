@@ -1,14 +1,13 @@
-// types.ts
 import type { Intersection } from "three";
+import type { GameObject } from "./gameObject.ts";
 
 export type GameObjectType =
   | "sprite"
-  | "cube"
+  | "mesh"
   | "camera"
   | "light"
   | "audio"
-  | "empty"
-  | "mesh";
+  | "empty";
 
 export interface UpdateData {
   delta: number;
@@ -17,19 +16,36 @@ export interface UpdateData {
 }
 
 export interface ClickData {
+  object: GameObject; // The clicked object (pure data)
   mouse: { x: number; y: number };
-  intersection?: Intersection;
+  intersection: Intersection;
+}
+
+export interface CollisionData {
+  a: GameObject; // First collider
+  b: GameObject; // Second collider
+  type: "enter"; // Future-proof for stay/exit
 }
 
 export interface GameObjectConfig {
-  name: string;
+  name?: string;
   type: GameObjectType;
   position?: [number, number, number?];
   rotation?: [number, number, number?];
   scale?: [number, number, number?];
+  tags?: string[];
 }
 
-// Input state interfaces
+export type ColliderType = "sphere" | "box" | "circle" | "rectangle";
+
+export interface ColliderConfig {
+  type: ColliderType;
+  isTrigger?: boolean;
+  size?: number | [number, number] | [number, number, number];
+  offset?: [number, number, number];
+}
+
+// Simplified input state - just data
 export interface InputState {
   keys: Map<string, boolean>;
   mouse: {
@@ -38,57 +54,7 @@ export interface InputState {
     worldX: number;
     worldY: number;
     isDown: boolean;
-    justPressed: boolean; // Reset after frame
-    justReleased: boolean; // Reset after frame
+    justPressed: boolean;
+    justReleased: boolean;
   };
 }
-
-export type KeyCode =
-  | "KeyA"
-  | "KeyB"
-  | "KeyC"
-  | "KeyD"
-  | "KeyE"
-  | "KeyF"
-  | "KeyG"
-  | "KeyH"
-  | "KeyI"
-  | "KeyJ"
-  | "KeyK"
-  | "KeyL"
-  | "KeyM"
-  | "KeyN"
-  | "KeyO"
-  | "KeyP"
-  | "KeyQ"
-  | "KeyR"
-  | "KeyS"
-  | "KeyT"
-  | "KeyU"
-  | "KeyV"
-  | "KeyW"
-  | "KeyX"
-  | "KeyY"
-  | "KeyZ"
-  | "Space"
-  | "Enter"
-  | "ShiftLeft"
-  | "ShiftRight"
-  | "ControlLeft"
-  | "ControlRight"
-  | "AltLeft"
-  | "AltRight"
-  | "ArrowUp"
-  | "ArrowDown"
-  | "ArrowLeft"
-  | "ArrowRight"
-  | "Digit0"
-  | "Digit1"
-  | "Digit2"
-  | "Digit3"
-  | "Digit4"
-  | "Digit5"
-  | "Digit6"
-  | "Digit7"
-  | "Digit8"
-  | "Digit9";

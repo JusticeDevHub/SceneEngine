@@ -1,39 +1,251 @@
-// gameObject.ts
 import * as THREE from "three";
 import type { CanvasEngine } from "./engine.ts";
-import type { GameObjectType, UpdateData, ClickData } from "./types.ts";
+import type { GameObjectType, ColliderConfig } from "./types.ts";
 
-type EventCallback<T> = (data: T) => void;
+function generateId(): string {
+  // Fallback for older browsers
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
 
 export class GameObject {
-  readonly name: string;
+  readonly id: string;
+  name: string;
   readonly type: GameObjectType;
   readonly engine: CanvasEngine;
+  private _tags = new Set<string>();
 
+  // Object3D reference (visual representation data)
   threeObject: THREE.Object3D | null = null;
+
+  // User data storage (pure data)
   private variables = new Map<string, unknown>();
+
+  // Hierarchy (transform only, no logic propagation needed)
   private children = new Set<GameObject>();
   private parent: GameObject | null = null;
 
-  // Event handlers
-  private updateHandlers = new Set<EventCallback<UpdateData>>();
-  private clickHandlers = new Set<EventCallback<ClickData>>();
-  private globalClickHandlers = new Set<EventCallback<ClickData>>();
-  private mouseEnterHandlers = new Set<EventCallback<ClickData>>();
-  private mouseLeaveHandlers = new Set<EventCallback<ClickData>>();
+  // Physics/Collision data
+  collider: {
+    type: "sphere" | "box" | "circle" | "rectangle";
+    isTrigger: boolean;
+    bounds: any;
+    offset: THREE.Vector3;
+  } | null = null;
 
-  private _isHovered = false;
+  // State flags (data only)
   private _enabled = true;
   private _isDestroyed = false;
+  isHovered = false; // Set by engine systems, readable by user systems
 
   constructor(name: string, engine: CanvasEngine, type: GameObjectType) {
-    this.name = name;
+    this.id = generateId();
+    this.name = name || `${type}_${this.id.substring(0, 4)}`;
     this.engine = engine;
     this.type = type;
-
     this.createThreeObject(type);
   }
 
+  // ===== Tags (Data indexing) =====
+  addTag(tag: string): this {
+    if (!this._tags.has(tag)) {
+      this._tags.add(tag);
+      this.engine._updateTagIndex(this.id, tag, "add");
+    }
+    return this;
+  }
+
+  removeTag(tag: string): this {
+    if (this._tags.has(tag)) {
+      this._tags.delete(tag);
+      this.engine._updateTagIndex(this.id, tag, "remove");
+    }
+    return this;
+  }
+
+  hasTag(tag: string): boolean {
+    return this._tags.has(tag);
+  }
+
+  hasAllTags(tags: string[]): boolean {
+    return tags.every((t) => this._tags.has(t));
+  }
+
+  getTags(): string[] {
+    return Array.from(this._tags);
+  }
+
+  // ===== Collider (Data attachment) =====
+  addCollider(config: ColliderConfig): this {
+    const offset = new THREE.Vector3(...(config.offset || [0, 0, 0]));
+    let bounds: any = {};
+
+    if (this.engine.mode === "2d") {
+      if (config.type === "circle" || config.type === "sphere") {
+        bounds = {
+          radius: typeof config.size === "number" ? config.size : 0.5,
+        };
+      } else {
+        const size = Array.isArray(config.size) ? config.size : [1, 1];
+        bounds = { width: size[0], height: size[1] };
+      }
+    } else {
+      if (config.type === "sphere") {
+        bounds = {
+          radius: typeof config.size === "number" ? config.size : 0.5,
+          center: new THREE.Vector3(0, 0, 0),
+        };
+      } else {
+        const size = Array.isArray(config.size) ? config.size : [1, 1, 1];
+        bounds = {
+          size: new THREE.Vector3(size[0], size[1], size[2] || 1),
+        };
+      }
+    }
+
+    this.collider = {
+      type: config.type,
+      isTrigger: config.isTrigger ?? false,
+      bounds,
+      offset,
+    };
+
+    // Register for collision detection processing (data registration, not callback)
+    this.engine._registerCollider(this);
+    return this;
+  }
+
+  removeCollider(): this {
+    if (this.collider) {
+      this.engine._unregisterCollider(this);
+      this.collider = null;
+    }
+    return this;
+  }
+
+  // ===== Transform (Data manipulation) =====
+  setPosition(x: number, y: number, z: number = 0): this {
+    this.threeObject?.position.set(x, y, z);
+    return this;
+  }
+
+  setRotation(x: number, y: number = 0, z: number = 0): this {
+    this.threeObject?.rotation.set(x, y, z);
+    return this;
+  }
+
+  setScale(x: number, y: number, z: number = 1): this {
+    this.threeObject?.scale.set(x, y, z);
+    return this;
+  }
+
+  getPosition(): THREE.Vector3 | null {
+    return this.threeObject?.position.clone() ?? null;
+  }
+
+  // ===== Variables (Data storage) =====
+  setVariable<T>(key: string, value: T): this {
+    this.variables.set(key, value);
+    return this;
+  }
+
+  getVariable<T>(key: string): T | undefined {
+    return this.variables.get(key) as T | undefined;
+  }
+
+  // ===== Visuals (Data state) =====
+  setColor(color: number | string): this {
+    if (this.threeObject instanceof THREE.Mesh) {
+      const mat = this.threeObject.material;
+      if (
+        mat instanceof THREE.MeshBasicMaterial ||
+        mat instanceof THREE.MeshStandardMaterial
+      ) {
+        mat.color.set(color);
+      }
+    }
+    return this;
+  }
+
+  // ===== Hierarchy (Transform tree) =====
+  addChild(child: GameObject): this {
+    if (child.parent) child.parent.removeChild(child);
+    this.children.add(child);
+    child.parent = this;
+    if (this.threeObject && child.threeObject) {
+      this.threeObject.add(child.threeObject); // Three.js handles transform inheritance
+    }
+    return this;
+  }
+
+  removeChild(child: GameObject): this {
+    if (this.children.has(child)) {
+      this.children.delete(child);
+      child.parent = null;
+      if (this.threeObject && child.threeObject) {
+        this.threeObject.remove(child.threeObject);
+      }
+    }
+    return this;
+  }
+
+  getChildren(): GameObject[] {
+    return Array.from(this.children);
+  }
+
+  // ===== Lifecycle (State changes) =====
+  get enabled() {
+    return this._enabled;
+  }
+
+  enable(): this {
+    this._enabled = true;
+    if (this.threeObject) this.threeObject.visible = true;
+    return this;
+  }
+
+  disable(): this {
+    this._enabled = false;
+    if (this.threeObject) this.threeObject.visible = false;
+    return this;
+  }
+
+  get isDestroyed() {
+    return this._isDestroyed;
+  }
+
+  destroy(): void {
+    if (this._isDestroyed) return;
+    this._isDestroyed = true;
+
+    // Cleanup registrations
+    this.engine._unregisterCollider(this);
+    this._tags.forEach((tag) =>
+      this.engine._updateTagIndex(this.id, tag, "remove"),
+    );
+
+    // Cascade destruction (children are dependent data)
+    Array.from(this.children).forEach((c) => c.destroy());
+    if (this.parent) this.parent.removeChild(this);
+
+    this.engine._removeObject(this.id);
+
+    // Three.js cleanup
+    if (this.threeObject) {
+      if (this.threeObject instanceof THREE.Mesh) {
+        this.threeObject.geometry?.dispose();
+        const mat = this.threeObject.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose();
+      }
+      this.engine.scene.remove(this.threeObject);
+      this.threeObject = null;
+    }
+  }
+
+  // ===== Internal Factory =====
   private createThreeObject(type: GameObjectType): void {
     switch (type) {
       case "sprite": {
@@ -46,14 +258,7 @@ export class GameObject {
         this.threeObject = new THREE.Mesh(geo, mat);
         break;
       }
-      case "cube": {
-        const geo = new THREE.BoxGeometry(1, 1, 1);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-        this.threeObject = new THREE.Mesh(geo, mat);
-        break;
-      }
       case "mesh": {
-        // Generic mesh with default geometry - user can customize later
         const geo = new THREE.BoxGeometry(1, 1, 1);
         const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
         this.threeObject = new THREE.Mesh(geo, mat);
@@ -86,238 +291,10 @@ export class GameObject {
         this.threeObject = new THREE.DirectionalLight(0xffffff, 1);
         break;
       }
-      case "audio": {
-        // Audio uses Object3D as a positional container in Three.js
-        // Actual Audio object would be attached to this
-        this.threeObject = new THREE.Object3D();
-        break;
-      }
-      case "empty":
       default: {
         this.threeObject = new THREE.Object3D();
       }
     }
-
-    if (this.threeObject) {
-      this.engine.scene.add(this.threeObject);
-    }
-  }
-
-  // ===== Transform =====
-  setPosition(x: number, y: number, z: number = 0): this {
-    this.threeObject?.position.set(x, y, z);
-    return this;
-  }
-
-  setRotation(x: number, y: number = 0, z: number = 0): this {
-    this.threeObject?.rotation.set(x, y, z);
-    return this;
-  }
-
-  setScale(x: number, y: number, z: number = 1): this {
-    this.threeObject?.scale.set(x, y, z);
-    return this;
-  }
-
-  getPosition(): THREE.Vector3 | null {
-    return this.threeObject?.position.clone() ?? null;
-  }
-
-  // ===== Variables =====
-  setVariable<T>(key: string, value: T): this {
-    this.variables.set(key, value);
-    return this;
-  }
-
-  getVariable<T>(key: string): T | undefined {
-    return this.variables.get(key) as T | undefined;
-  }
-
-  // ===== Visuals =====
-  setImage(url: string): this {
-    if (this.type !== "sprite") {
-      console.warn("setImage only works on sprite type");
-      return this;
-    }
-
-    const loader = new THREE.TextureLoader();
-    loader.load(url, (texture: THREE.Texture) => {
-      // Check if destroyed or no longer a sprite during load
-      if (this._isDestroyed || !this.threeObject || this.type !== "sprite") {
-        texture.dispose();
-        return;
-      }
-
-      const mesh = this.threeObject as THREE.Mesh;
-      const mat = mesh.material as THREE.MeshBasicMaterial;
-
-      // Dispose old texture to prevent memory leak
-      if (mat.map) {
-        mat.map.dispose();
-      }
-
-      mat.map = texture;
-      mat.transparent = true;
-      mat.needsUpdate = true;
-    });
-    return this;
-  }
-
-  setColor(color: number | string): this {
-    if (!this.threeObject) return this;
-
-    // Only apply to objects with materials
-    if (this.threeObject instanceof THREE.Mesh) {
-      const mat = this.threeObject.material;
-      if (
-        mat instanceof THREE.MeshBasicMaterial ||
-        mat instanceof THREE.MeshStandardMaterial ||
-        mat instanceof THREE.MeshLambertMaterial ||
-        mat instanceof THREE.MeshPhongMaterial
-      ) {
-        mat.color.set(color);
-      }
-    }
-
-    return this;
-  }
-
-  // ===== Events =====
-  onUpdate(callback: EventCallback<UpdateData>): this {
-    this.updateHandlers.add(callback);
-    return this;
-  }
-
-  onClick(callback: EventCallback<ClickData>): this {
-    this.clickHandlers.add(callback);
-    this.engine._registerInteractive(this);
-    return this;
-  }
-
-  onClickGlobal(callback: EventCallback<ClickData>): this {
-    this.globalClickHandlers.add(callback);
-    return this;
-  }
-
-  onMouseEnter(callback: EventCallback<ClickData>): this {
-    this.mouseEnterHandlers.add(callback);
-    this.engine._registerInteractive(this);
-    return this;
-  }
-
-  onMouseLeave(callback: EventCallback<ClickData>): this {
-    this.mouseLeaveHandlers.add(callback);
-    this.engine._registerInteractive(this);
-    return this;
-  }
-
-  // ===== Internal Event Triggers =====
-  update(data: UpdateData): void {
-    if (!this._enabled) return;
-    this.updateHandlers.forEach((cb) => cb(data));
-    this.children.forEach((child) => child.update(data));
-  }
-
-  triggerClick(data: ClickData): void {
-    this.clickHandlers.forEach((cb) => cb(data));
-  }
-
-  triggerGlobalClick(data: ClickData): void {
-    this.globalClickHandlers.forEach((cb) => cb(data));
-  }
-
-  triggerMouseEnter(data: ClickData): void {
-    this.mouseEnterHandlers.forEach((cb) => cb(data));
-  }
-
-  triggerMouseLeave(data: ClickData): void {
-    this.mouseLeaveHandlers.forEach((cb) => cb(data));
-  }
-
-  // ===== Hierarchy =====
-  addChild(child: GameObject): this {
-    if (child.parent) {
-      child.parent.removeChild(child);
-    }
-    this.children.add(child);
-    child.parent = this;
-
-    if (this.threeObject && child.threeObject) {
-      this.threeObject.add(child.threeObject);
-    }
-    return this;
-  }
-
-  removeChild(child: GameObject): this {
-    if (this.children.has(child)) {
-      this.children.delete(child);
-      child.parent = null;
-      if (this.threeObject && child.threeObject) {
-        this.threeObject.remove(child.threeObject);
-      }
-    }
-    return this;
-  }
-
-  // ===== State =====
-  get isHovered(): boolean {
-    return this._isHovered;
-  }
-
-  setHovered(value: boolean): void {
-    this._isHovered = value;
-  }
-
-  enable(): this {
-    this._enabled = true;
-    if (this.threeObject) this.threeObject.visible = true;
-    return this;
-  }
-
-  disable(): this {
-    this._enabled = false;
-    if (this.threeObject) this.threeObject.visible = false;
-    return this;
-  }
-
-  // ===== Destruction =====
-  destroy(): void {
-    if (this._isDestroyed) return;
-    this._isDestroyed = true;
-
-    this.engine._unregisterInteractive(this);
-
-    // Destroy children
-    Array.from(this.children).forEach((child) => child.destroy());
-
-    // Remove from parent
-    if (this.parent) {
-      this.parent.removeChild(this);
-    }
-
-    // Remove from engine registry
-    this.engine._removeFromEngine(this.name);
-
-    // Cleanup Three.js
-    if (this.threeObject) {
-      // Safely dispose based on type
-      if (this.threeObject instanceof THREE.Mesh) {
-        if (this.threeObject.geometry) {
-          this.threeObject.geometry.dispose();
-        }
-
-        if (this.threeObject.material) {
-          const mat = this.threeObject.material;
-          if (Array.isArray(mat)) {
-            mat.forEach((m: THREE.Material) => m.dispose());
-          } else {
-            mat.dispose();
-          }
-        }
-      }
-
-      this.engine.scene.remove(this.threeObject);
-      this.threeObject = null;
-    }
+    if (this.threeObject) this.engine.scene.add(this.threeObject);
   }
 }
