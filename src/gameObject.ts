@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { CanvasEngine } from "./engine.ts";
+import type { SceneEngine } from "./engine.ts";
 import type { GameObjectType, ColliderConfig } from "./types.ts";
 
 function generateId(): string {
@@ -14,7 +14,7 @@ export class GameObject {
   readonly id: string;
   name: string;
   readonly type: GameObjectType;
-  readonly engine: CanvasEngine;
+  readonly engine: SceneEngine;
   private _tags = new Set<string>();
 
   // Object3D reference (visual representation data)
@@ -40,7 +40,7 @@ export class GameObject {
   private _isDestroyed = false;
   isHovered = false; // Set by engine systems, readable by user systems
 
-  constructor(name: string, engine: CanvasEngine, type: GameObjectType) {
+  constructor(name: string, engine: SceneEngine, type: GameObjectType) {
     this.id = generateId();
     this.name = name || `${type}_${this.id.substring(0, 4)}`;
     this.engine = engine;

@@ -21,7 +21,7 @@ type UpdateCallback = (data: UpdateData) => void;
 type CollisionCallback = (data: CollisionData) => void;
 type ClickCallback = (data: ClickData) => void;
 
-export class CanvasEngine {
+export class SceneEngine {
   readonly mode: "2d" | "3d";
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;

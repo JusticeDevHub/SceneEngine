@@ -1,6 +1,6 @@
 // utils.ts
 import * as THREE from "three";
-import type { CanvasEngine } from "./engine.ts";
+import type { SceneEngine } from "./engine.ts";
 import { GameObject } from "./gameObject.ts";
 
 export type PointInput =
@@ -10,9 +10,9 @@ export type PointInput =
   | GameObject;
 
 export class EngineUtils {
-  private engine: CanvasEngine;
+  private engine: SceneEngine;
 
-  constructor(engine: CanvasEngine) {
+  constructor(engine: SceneEngine) {
     this.engine = engine;
   }
 
@@ -195,9 +195,9 @@ export class InputManager {
   private mouse = { x: 0, y: 0, isDown: false };
   private justPressed = false;
   private justReleased = false;
-  private engine: CanvasEngine;
+  private engine: SceneEngine;
 
-  constructor(engine: CanvasEngine) {
+  constructor(engine: SceneEngine) {
     this.engine = engine;
     this.setupListeners();
   }

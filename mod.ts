@@ -4,18 +4,11 @@
  *
  * @example
  * ```typescript
- * import { CanvasEngine } from "@yourusername/three-game-engine";
+ * import { SceneEngine } from "@yourusername/three-game-engine";
  *
- * const engine = new CanvasEngine("2d");
+ * const engine = new SceneEngine("2d");
  * const player = engine.createObject({ name: "player", type: "sprite" });
  * ```
  */
 
-export { CanvasEngine } from "./src/engine.ts";
-export { GameObject } from "./src/gameObject.ts";
-export type {
-  GameObjectType,
-  UpdateData,
-  ClickData,
-  GameObjectConfig,
-} from "./src/types.ts";
+export { SceneEngine } from "./src/engine.ts";
