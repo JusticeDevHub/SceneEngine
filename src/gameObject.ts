@@ -169,6 +169,80 @@ export class GameObject {
     return this;
   }
 
+  // ===== Sprite/2D Specific =====
+
+  /**
+   * Set image texture for sprite types.
+   * Accepts URL string (auto-loads) or pre-loaded THREE.Texture
+   */
+  setImage(url: string | THREE.Texture): this {
+    if (!this.threeObject || !(this.threeObject instanceof THREE.Mesh)) {
+      console.warn(`Cannot set image on ${this.type} (must be mesh/sprite)`);
+      return this;
+    }
+
+    const mat = this.threeObject.material;
+    if (!(mat instanceof THREE.MeshBasicMaterial)) {
+      return this;
+    }
+
+    // Clean up previous texture to prevent memory leaks
+    if (mat.map) {
+      mat.map.dispose();
+      mat.map = null;
+    }
+
+    if (typeof url === "string") {
+      // Async load - closure captures this to check if still valid
+      new THREE.TextureLoader().load(
+        url,
+        (texture: THREE.Texture) => {
+          // ColorSpace for proper rendering
+          texture.colorSpace = THREE.SRGBColorSpace;
+
+          // Only apply if object still exists (not destroyed while loading)
+          if (
+            this.threeObject &&
+            !this._isDestroyed &&
+            this.threeObject instanceof THREE.Mesh
+          ) {
+            const material = this.threeObject.material;
+            if (material instanceof THREE.MeshBasicMaterial) {
+              material.map = texture;
+              material.needsUpdate = true;
+              material.transparent = true; // Ensure alpha works
+            }
+          }
+        },
+        undefined,
+        (err: Error) => console.error(`Failed to load texture: ${url}`, err),
+      );
+    } else {
+      // Pre-loaded texture
+      url.colorSpace = THREE.SRGBColorSpace;
+      mat.map = url;
+      mat.needsUpdate = true;
+      mat.transparent = true;
+    }
+
+    return this;
+  }
+
+  /** Set opacity (0-1) for sprite transparency */
+  setOpacity(value: number): this {
+    if (!this.threeObject || !(this.threeObject instanceof THREE.Mesh)) {
+      return this;
+    }
+
+    const mat = this.threeObject.material;
+    if (mat instanceof THREE.MeshBasicMaterial) {
+      mat.opacity = this.engine.utils.clamp(value, 0, 1);
+      mat.transparent = true;
+      mat.needsUpdate = true;
+    }
+    return this;
+  }
+
   // ===== Hierarchy (Transform tree) =====
   addChild(child: GameObject): this {
     if (child.parent) child.parent.removeChild(child);
