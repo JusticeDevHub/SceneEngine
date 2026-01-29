@@ -189,3 +189,79 @@ export class EngineUtils {
     );
   }
 }
+
+export class InputManager {
+  private keys = new Map<string, boolean>();
+  private mouse = { x: 0, y: 0, isDown: false };
+  private justPressed = false;
+  private justReleased = false;
+  private engine: CanvasEngine;
+
+  constructor(engine: CanvasEngine) {
+    this.engine = engine;
+    this.setupListeners();
+  }
+
+  private setupListeners(): void {
+    window.addEventListener("keydown", (e) => {
+      this.keys.set(e.code, true);
+    });
+
+    window.addEventListener("keyup", (e) => {
+      this.keys.set(e.code, false);
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
+    });
+
+    window.addEventListener("mousedown", () => {
+      this.mouse.isDown = true;
+      this.justPressed = true;
+    });
+
+    window.addEventListener("mouseup", () => {
+      this.mouse.isDown = false;
+      this.justReleased = true;
+    });
+  }
+
+  /** Check if key is currently held down */
+  isKeyDown(code: string): boolean {
+    return this.keys.get(code) ?? false;
+  }
+
+  /** Check if key was pressed this frame (single trigger) */
+  isKeyPressed(code: string): boolean {
+    // This would require frame-based reset logic called by engine
+    // Simplified version - for single triggers use onClick pattern or track manually
+    return this.keys.get(code) === true;
+  }
+
+  /** Get mouse position in screen coordinates */
+  getMouseScreen(): { x: number; y: number } {
+    return { x: this.mouse.x, y: this.mouse.y };
+  }
+
+  /** Get mouse position in world coordinates (2D plane) */
+  getMouseWorld(zDepth: number = 0): { x: number; y: number; z: number } {
+    return this.engine.utils.screenToWorld(this.mouse.x, this.mouse.y, zDepth);
+  }
+
+  /** Is mouse button held down */
+  isMouseDown(): boolean {
+    return this.mouse.isDown;
+  }
+
+  /** Was mouse just clicked this frame */
+  isMouseJustPressed(): boolean {
+    return this.justPressed;
+  }
+
+  /** Internal: Call at end of frame to reset one-shot states */
+  resetFrame(): void {
+    this.justPressed = false;
+    this.justReleased = false;
+  }
+}

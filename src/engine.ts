@@ -1,8 +1,8 @@
-// engine.ts (unchanged from your version - already correct)
+// engine.ts - Centralized update loop with input handling
 import * as THREE from "three";
 import type { GameObjectConfig, UpdateData } from "./types.ts";
 import { GameObject } from "./gameObject.ts";
-import { EngineUtils } from "./utils.ts";
+import { EngineUtils, InputManager } from "./utils.ts";
 
 export interface EngineOptions {
   mode?: "2d" | "3d";
@@ -18,6 +18,7 @@ export class CanvasEngine {
   readonly scene: THREE.Scene;
   readonly camera: THREE.Camera;
   readonly utils: EngineUtils;
+  readonly input: InputManager; // New: Built-in input handling
 
   private objects = new Map<string, GameObject>();
   private interactiveObjects = new Set<GameObject>();
@@ -28,7 +29,8 @@ export class CanvasEngine {
   private isRunning = true;
   private boundHandlers: Array<[string, EventListener]> = [];
 
-  private onUpdateCallbacks = new Set<(data: UpdateData) => void>();
+  // Frame-based update callbacks only at engine level
+  private updateCallbacks = new Set<(data: UpdateData) => void>();
 
   constructor(options: EngineOptions = {}) {
     const {
@@ -41,8 +43,8 @@ export class CanvasEngine {
 
     this.mode = mode;
     this.utils = new EngineUtils(this);
+    this.input = new InputManager(this); // Initialize input
 
-    // Setup renderer - identical for 2D and 3D
     this.renderer = new THREE.WebGLRenderer({
       antialias,
       alpha: backgroundColor === undefined,
@@ -53,13 +55,11 @@ export class CanvasEngine {
 
     container.appendChild(this.renderer.domElement);
 
-    // Setup scene - identical for 2D and 3D
     this.scene = new THREE.Scene();
     if (backgroundColor !== undefined) {
       this.scene.background = new THREE.Color(backgroundColor);
     }
 
-    // Camera is the ONLY difference between 2D and 3D modes
     if (mode === "2d") {
       const aspect = window.innerWidth / window.innerHeight;
       const height = 10;
@@ -94,7 +94,6 @@ export class CanvasEngine {
 
     const obj = new GameObject(config.name, this, config.type);
 
-    // Apply initial transforms with safe tuple destructuring
     if (config.position) {
       const [x, y, z = 0] = config.position;
       obj.setPosition(x, y, z);
@@ -125,9 +124,10 @@ export class CanvasEngine {
     }
   }
 
+  /** Register frame update callback (centralized in engine) */
   onUpdate(callback: (data: UpdateData) => void): () => void {
-    this.onUpdateCallbacks.add(callback);
-    return () => this.onUpdateCallbacks.delete(callback);
+    this.updateCallbacks.add(callback);
+    return () => this.updateCallbacks.delete(callback);
   }
 
   pause(): void {
@@ -138,7 +138,7 @@ export class CanvasEngine {
     this.isRunning = true;
   }
 
-  // Internal methods called by GameObject
+  // Internal methods
   _registerInteractive(obj: GameObject): void {
     this.interactiveObjects.add(obj);
   }
@@ -152,6 +152,7 @@ export class CanvasEngine {
   }
 
   private setupEvents(): void {
+    // Mouse tracking for raycasting (separate from input manager)
     const onMouseMove = (e: MouseEvent) => {
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -207,7 +208,9 @@ export class CanvasEngine {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const objects = Array.from(this.interactiveObjects)
       .map((obj) => obj.threeObject)
-      .filter((obj): obj is THREE.Object3D => obj !== null);
+      .filter(
+        (obj: THREE.Object3D | null): obj is THREE.Object3D => obj !== null,
+      );
     return this.raycaster.intersectObjects(objects);
   }
 
@@ -246,8 +249,11 @@ export class CanvasEngine {
 
       const updateData: UpdateData = { delta, time, frame: this.frame };
 
-      this.onUpdateCallbacks.forEach((cb) => cb(updateData));
-      this.objects.forEach((obj) => obj.update(updateData));
+      // Centralized update - only at engine level
+      this.updateCallbacks.forEach((cb) => cb(updateData));
+
+      // Update input state (reset one-shot triggers)
+      this.input.resetFrame();
 
       this.renderer.render(this.scene, this.camera);
     };
