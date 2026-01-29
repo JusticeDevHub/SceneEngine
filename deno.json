@@ -1,6 +1,5 @@
 {
-  "name": "@yourusername/three-game-engine",
-  "version": "0.0.0",
+  "name": "@web-dev-library/canvas-engine-3d",
   "exports": "./mod.ts",
   "imports": {
     "three": "npm:three@^0.182.0"
