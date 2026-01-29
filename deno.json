@@ -1,0 +1,11 @@
+{
+  "name": "@yourusername/three-game-engine",
+  "version": "0.0.0",
+  "exports": "./mod.ts",
+  "imports": {
+    "three": "npm:three@^0.182.0"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "es2022"]
+  }
+}
