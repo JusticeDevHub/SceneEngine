@@ -1,5 +1,6 @@
 {
-  "name": "@web-dev-library/canvas-engine-3d",
+  "name": "@web-dev-library/scene-engine",
+  "version": "0.1.2",
   "exports": "./mod.ts",
   "imports": {
     "three": "npm:three@^0.182.0"
