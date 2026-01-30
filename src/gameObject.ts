@@ -215,7 +215,7 @@ export class GameObject {
           }
         },
         undefined,
-        (err: Error) => console.error(`Failed to load texture: ${url}`, err),
+        (err: unknown) => console.error(`Failed to load texture: ${url}`, err),
       );
     } else {
       // Pre-loaded texture
