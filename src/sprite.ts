@@ -1,7 +1,11 @@
 import * as THREE from "three";
 import { GameObject } from "./gameObject.ts";
 
+/**
+ * A 2D sprite that always faces the camera.
+ */
 export class Sprite extends GameObject {
+  /** @internal */
   readonly _threeObject: THREE.Sprite;
   private _textureLoader: THREE.TextureLoader;
 
@@ -13,6 +17,14 @@ export class Sprite extends GameObject {
     );
   }
 
+  /**
+   * Sets the color of this sprite.
+   * @param r - Red (0-1)
+   * @param g - Green (0-1)
+   * @param b - Blue (0-1)
+   * @param a - Alpha (0-1), defaults to 1
+   * @returns This sprite for chaining
+   */
   setColor(r: number, g: number, b: number, a: number = 1): this {
     const mat = this._threeObject.material as THREE.SpriteMaterial;
     mat.map = null;
@@ -23,6 +35,11 @@ export class Sprite extends GameObject {
     return this;
   }
 
+  /**
+   * Sets the sprite texture from a URL.
+   * @param url - Image URL to load
+   * @returns This sprite for chaining
+   */
   setSprite(url: string): this {
     const texture = this._textureLoader.load(url);
     const mat = this._threeObject.material as THREE.SpriteMaterial;

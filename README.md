@@ -1,27 +1,19 @@
-# @web-dev-engine/scene-engine
+# Scene Engine
 
-A lightweight 2D/3D scene engine built on Three.js with a fluent, chainable API.
-
-## Install
-```
-npx jsr add @web-dev-engine/scene-engine
-```
+A simple, type-safe wrapper around Three.js for creating 3D scenes and games.
 
 ## Quick Start
-```
-import { SceneEngine } from "@web-dev-engine/scene-engine";
 
-const engine = new SceneEngine("canvas-container")
-  .setMode("2d")
-  .setBackgroundColor(0x222222)
-  .start();
+```typescript
+import { SceneEngine } from "@yourscope/scene-engine";
 
-const player = engine
-  .createObject()
-  .setType("sprite")
-  .setPosition(0, 0)
-  .setColor(0x00ff00)
-  .addTag("player");
-```
+const engine = new SceneEngine();
 
-More detail coming..
+// Create a red spinning cube
+const cube = engine.createMesh()
+  .setMaterial(new THREE.MeshStandardMaterial({ color: 0xff0000 }))
+  .setPosition(0, 0, 0);
+
+engine.onUpdate((eng) =&gt; {
+  cube.setRotation(0, cube.getRotation().y + 90 * eng.getDeltaTime(), 0);
+});

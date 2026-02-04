@@ -1,8 +1,12 @@
 import * as THREE from "three";
 import { GameObject } from "./gameObject.ts";
 import { Mesh } from "./mesh.ts";
-import { Sprite } from "./sprite.ts";
+import { Sprite } from "./Sprite.ts";
 
+/**
+ * The main engine class that manages the Three.js scene, renderer, and game objects.
+ * Automatically starts the render loop upon instantiation.
+ */
 export class SceneEngine {
   private _renderer: THREE.WebGLRenderer;
   private _scene: THREE.Scene;
@@ -12,6 +16,10 @@ export class SceneEngine {
   private _lastTime: number;
   private _deltaTime: number;
 
+  /**
+   * Creates a new SceneEngine instance.
+   * @param canvasContainer - Optional HTML element to contain the canvas. If not provided, canvas will be fullscreen.
+   */
   constructor(canvasContainer?: HTMLElement) {
     this._objects = new Map();
     this._updateCallbacks = new Set();
@@ -67,12 +75,24 @@ export class SceneEngine {
     this._loop();
   }
 
+  /**
+   * Sets the background color of the scene.
+   * @param r - Red value (0-1)
+   * @param g - Green value (0-1)
+   * @param b - Blue value (0-1)
+   * @param a - Alpha value (0-1), defaults to 1
+   * @returns This engine instance for chaining
+   */
   setBackgroundColor(r: number, g: number, b: number, a: number = 1): this {
     this._scene.background = new THREE.Color(r, g, b);
     this._renderer.setClearAlpha(a);
     return this;
   }
 
+  /**
+   * Creates a new mesh object with a default cube geometry.
+   * @returns The created mesh instance
+   */
   createMesh(): Mesh {
     const mesh = new Mesh();
     this._objects.set(mesh.getId(), mesh);
@@ -80,6 +100,10 @@ export class SceneEngine {
     return mesh;
   }
 
+  /**
+   * Creates a new sprite object.
+   * @returns The created sprite instance
+   */
   createSprite(): Sprite {
     const sprite = new Sprite();
     this._objects.set(sprite.getId(), sprite);
@@ -87,6 +111,10 @@ export class SceneEngine {
     return sprite;
   }
 
+  /**
+   * Destroys a game object and removes it from the scene.
+   * @param object - The game object to destroy
+   */
   destroy(object: GameObject): void {
     this._scene.remove(object._threeObject);
     this._objects.delete(object.getId());
@@ -98,10 +126,20 @@ export class SceneEngine {
     }
   }
 
+  /**
+   * Gets a game object by its unique ID.
+   * @param id - The UUID of the object
+   * @returns The game object, or undefined if not found
+   */
   getObjectById(id: string): GameObject | undefined {
     return this._objects.get(id);
   }
 
+  /**
+   * Gets all game objects that have all the specified tags.
+   * @param tags - Array of tags to match
+   * @returns Array of matching game objects
+   */
   getObjectsByTags(tags: string[]): GameObject[] {
     const result: GameObject[] = [];
     for (const obj of this._objects.values()) {
@@ -112,11 +150,20 @@ export class SceneEngine {
     return result;
   }
 
+  /**
+   * Registers a callback to be called every frame.
+   * @param callback - Function to call each frame, receives the engine instance
+   * @returns This engine instance for chaining
+   */
   onUpdate(callback: (engine: SceneEngine) => void): SceneEngine {
     this._updateCallbacks.add(callback);
     return this;
   }
 
+  /**
+   * Gets the time elapsed since the last frame in seconds.
+   * @returns Delta time in seconds
+   */
   getDeltaTime(): number {
     return this._deltaTime;
   }
