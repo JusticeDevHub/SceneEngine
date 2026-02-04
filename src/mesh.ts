@@ -34,6 +34,10 @@ export class Mesh extends GameObject {
   }
 
   getMaterial(): THREE.Material {
+    if (Array.isArray(this._threeObject.material)) {
+      return this._threeObject.material[0];
+    }
+
     return this._threeObject.material;
   }
 }
