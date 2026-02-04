@@ -1,0 +1,13 @@
+{
+  "name": "@web-dev-engine/scene-engine",
+  "exports": {
+    ".": {
+      "import": "./mod.ts",
+      "types": "./mod.ts"
+    }
+  },
+  "type": "module",
+  "dependencies": {
+    "three": "^0.182.0"
+  }
+}
