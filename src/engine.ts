@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GameObject } from "./gameObject.ts";
 import { Mesh } from "./mesh.ts";
-import { Sprite } from "./Sprite.ts";
+import { Sprite } from "./sprite.ts";
 
 /**
  * The main engine class that manages the Three.js scene, renderer, and game objects.
